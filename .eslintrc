@@ -1,0 +1,7 @@
+{
+  "rules": {
+    "quotes": [2, "single", "avoid-escape"],
+    "strict": [2, "global"],
+    "global-strict": [2, "always"]
+  }
+}
