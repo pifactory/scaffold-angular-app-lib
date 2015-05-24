@@ -14,8 +14,8 @@ module.exports = function (grunt) {
   // Define the configuration for all the tasks
   grunt.initConfig({
     clean: {
-      build: ['app-lib.gen', 'dist'],
-      demo: ['demo-app.gen', 'demo-app.libs']
+      build: ['.tmp/app-lib.gen', 'dist'],
+      demo: ['.tmp/demo-app.gen', '.tmp/demo-app.libs']
     },
 
     eslint: {
@@ -33,7 +33,7 @@ module.exports = function (grunt) {
           paths: ['app-lib/styles']
         },
         files: {
-          'app-lib.gen/styles/main.css': 'app-lib/styles/main.less'
+          '.tmp/app-lib.gen/styles/main.css': 'app-lib/styles/main.less'
         }
       },
       demo: {
@@ -41,7 +41,7 @@ module.exports = function (grunt) {
           paths: ['demo-app/styles']
         },
         files: {
-          'demo-app.gen/styles/main.css': 'demo-app/styles/main.less'
+          '.tmp/demo-app.gen/styles/main.css': 'demo-app/styles/main.less'
         }
       }
     },
@@ -51,7 +51,7 @@ module.exports = function (grunt) {
         options: {
           separator: '\n'
         },
-        src: ['app-lib/styles/**/*.css', 'app-lib.gen/styles/**/*.css'],
+        src: ['app-lib/styles/**/*.css', '.tmp/app-lib.gen/styles/**/*.css'],
         dest: '<%= libStyle %>'
       },
       buildJs: {
@@ -76,7 +76,7 @@ module.exports = function (grunt) {
         src: '<%= libDistPath %>/main.css'
       },
       demo: {
-        src: 'demo-app.gen/styles/main.css'
+        src: '.tmp/demo-app.gen/styles/main.css'
       }
     },
 
@@ -92,7 +92,8 @@ module.exports = function (grunt) {
           ],
           dest: '<%= libDistPath %>',
           filter: 'isFile'
-        }]
+        }],
+        timestamp: true
       },
 
       demo: {
@@ -107,9 +108,10 @@ module.exports = function (grunt) {
           rename: function (dest, src) {
             var sourceArray = src.split(path.sep);
             sourceArray.splice(0, 2);
-            return path.join('demo-app.libs', sourceArray.join(path.sep));
+            return path.join('.tmp/demo-app.libs', sourceArray.join(path.sep));
           }
-        }]
+        }],
+        timestamp: true
       }
     },
 
@@ -138,10 +140,10 @@ module.exports = function (grunt) {
         watchTask: true,
         server: {
           baseDir: [
-            'demo-app.gen',
+            '.tmp/demo-app.gen',
             'demo-app',
             'dist',
-            'demo-app.libs'
+            '.tmp/demo-app.libs'
           ],
           routes: {
             '/bower_components': 'bower_components'
@@ -161,10 +163,10 @@ module.exports = function (grunt) {
           open: true,
           middleware: function (connect) {
             return [
-              connect.static('demo-app.gen'),
+              connect.static('.tmp/demo-app.gen'),
               connect.static('demo-app'),
               connect.static('dist'),
-              connect.static('demo-app.libs'),
+              connect.static('.tmp/demo-app.libs'),
               connect().use(
                 '/bower_components',
                 connect.static('./bower_components')
@@ -196,7 +198,7 @@ module.exports = function (grunt) {
           livereload: true
         }
       },
-      libStyle: {
+      libStyles: {
         files: ['app-lib/styles/**/*.less'],
         tasks: ['less:build', 'concat:buildCss', 'autoprefixer:build'],
         options: {
@@ -213,7 +215,7 @@ module.exports = function (grunt) {
           livereload: true
         }
       },
-      demoStyle: {
+      demoStyles: {
         files: ['demo-app/styles/**/*.less'],
         tasks: ['less:demo', 'autoprefixer:demo'],
         options: {
@@ -224,39 +226,77 @@ module.exports = function (grunt) {
         files: [
           'demo-app/**/*.html',
           'demo-app/**/*.js',
-          'demo-app.gen/**/*.css'
+          '.tmp/demo-app.gen/**/*.css'
         ],
         options: {
           livereload: true
         }
       }
+    },
+
+    pkg: grunt.file.readJSON('package.json'),
+
+    /*eslint camelcase: [2, {properties: "never"}]*/
+    yabs: {
+      prerelease: {
+        check_git: { branch: ['master'], canPush: true, clean: true },
+
+        bump_versionOnly: { updateConfig: 'pkg', noWrite: true },
+
+        check_version: { branch: ['master'], cmpVersion: 'gt' }
+      },
+
+      release: {
+        bump_updateManifests: { manifests: ['package.json', 'bower.json'], updateConfig: false },
+
+        commit: { add: ['.'], addKnown: true },
+
+        tag: { name: '{%= version %}' },
+
+        push: { tags: true, useFollowTags: true }
+      }
     }
   });
 
   function loadBowerConfig() {
+    var pkgName = grunt.config.get('pkg.name');
     var bower = grunt.file.readJSON('bower.json');
+
+    if (pkgName !== bower.name) {
+      grunt.warn('Package names in package.json and bower.json do not match');
+    }
 
     var libDistPath = path.join('dist', grunt.file.readJSON('bower.json').name);
     var libScript = libDistPath + '/index.js';
     var libStyle = libDistPath + '/main.css';
 
-    var msg = 'bower.json has to define at least 2 main files: ' + libScript + ' and ' + libStyle;
-    if (!bower.main || bower.main.length < 2 || bower.main.indexOf(libScript) < 0 || bower.main.indexOf(libStyle) < 0) {
-      grunt.warn(msg);
-    } else {
-      grunt.config.set('libDistPath', libDistPath);
-      grunt.config.set('libScript', libScript);
-      grunt.config.set('libStyle', libStyle);
+    if (!bower.main || bower.main.length < 1 || bower.main.indexOf(libScript) < 0) {
+      grunt.warn('bower.json does not declare ' + libScript + ' as main file');
     }
+
+    if (!bower.main) {
+      var hasMainFilesOutsideDist = false;
+      bower.main.forEach(function (mainFile) {
+        hasMainFilesOutsideDist = hasMainFilesOutsideDist || path.normalize(mainFile).indexOf('dist/') !== 0;
+      });
+
+      if (hasMainFilesOutsideDist) {
+        grunt.warn('bower.json declares main files outside the dist folder');
+      }
+    }
+
+    grunt.config.set('libDistPath', libDistPath);
+    grunt.config.set('libScript', libScript);
+    grunt.config.set('libStyle', libStyle);
   }
 
   loadBowerConfig();
 
-  grunt.registerTask('reloadBower', function () {
+  grunt.registerTask('reloadBower', 'Internal task.', function () {
     loadBowerConfig();
   });
 
-  grunt.registerTask('build', function () {
+  grunt.registerTask('build', 'Prepare distribution files from sources in app-lib folder', function () {
 
     loadBowerConfig();
 
@@ -272,7 +312,7 @@ module.exports = function (grunt) {
 
   });
 
-  grunt.registerTask('serve', function (reloader) {
+  grunt.registerTask('serve', 'Start demo-app with livereload. Use serve:browserSync to run it with browserSync.', function (reloader) {
     var serveTasks = [
       'build',
       'clean:demo',
@@ -293,6 +333,16 @@ module.exports = function (grunt) {
     serveTasks.push('watch');
 
     grunt.task.run(serveTasks);
+  });
+
+  grunt.registerTask('release', 'Makes next release. Use release:minor or release:major if needed.' +
+    ' See semver for all supported increment modes.', function (pIncrement) {
+    var increment = pIncrement || 'patch';
+    grunt.task.run([
+      'yabs:prerelease:' + increment,
+      'build',
+      'yabs:release:' + increment
+    ]);
   });
 
   grunt.registerTask('default', [

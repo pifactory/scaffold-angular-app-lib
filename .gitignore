@@ -1,6 +1,4 @@
 node_modules
 bower_components
-app-lib.gen
-demo-app.gen
-demo-app.libs
+.tmp
 *.iml

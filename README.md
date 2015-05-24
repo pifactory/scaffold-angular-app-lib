@@ -2,96 +2,72 @@
 
 Clone this repo to get quick start of your library of AngularJS Components.
 
-It uses [YABL] to get things easily integrated together.
+It uses [YABL](YABL.md) to get things integrated.
 
 Interesting commands:
 
 * `grunt build` - prepare components in the `dist/` dir for distribution
 * `grunt serve` - start demo app (livereload included)
+* `grunt serve:browserSync` - same with browserSync
 * `grunt release` - bump version number, build and commit to git repo with version tag
-* `grunt watch:build` - keep files in `dist/` in sync with the sources (helps if you use bower link)
+* `grunt release:minor` - same, bump minor version number (like 0.1.0)
+* `grunt release:major` - same, bump major version number (like 1.0.0), other options are: premajor, preminor, prepatch, prerelease, zero
+* `grunt watch` - keep files in `dist/` in sync with the sources (helps if you use bower link)
 
 ## Folders layout
 
-### Own sources
+### Component library sources
 
 ```
-/app-lib/scripts
-/app-lib/images
-/app-lib/styles
-/app-lib/views
+app-lib/scripts
+app-lib/images
+app-lib/styles
+app-lib/views
 ```
 
-### Dependencies
+Build prepares distribution copy in `dist/${packageName}` folder. Scripts are style-checked with ESLint and concatenated into `dist/${packageName}/index.js`. 
+Less styles from `app-lib/styles/main.less` are compiled to CSS. All CSS files are concatenated and autoprefixed into `dist/${packageName}/main.css`.
+Other resources (like HTML etc) are copied as is.
 
-Managed by bower in `bower_components/`. They get deployed only to the demo-app and are not included in the component distribution build since bower is used for dependency management.
-
-### Distribution build
-
-Files prepared in `dist/` folder and are ready to be referenced by the hosting application or another component.
- 
-`bower.json` contains references to `dist/${libraryName}/scripts/index.js` and `dist/${libraryName}/styles/main.css` and ignores all folders besides `dist/`.
-
-#### Scripts
-
-All scripts from `app-lib/scripts/**/*.js` are style-checked with ESLint and concatenated to `dist/${libraryName}/scripts/index.js`.
-
-No other processing is applied.
-
-#### Styles
-
-`app-lib/styles/main.less` is compiled, autoprefixed and put into `dist/${libraryName}/styles/main.css`
- 
-#### Other assets
-
-Assets like pictures, fonts etc are copied to `dist/${libraryName}` as-is.
-
-### Demo app build
+### Demo app
 
 There is a demo app which is used to develop and test the component and is not part of the distribution.
 
 It's sources are placed under `demo-app/` folder:
 
 ```
-/demo-app
-/demo-app/scripts
-/demo-app/images
-/demo-app/styles
-/demo-app/views
+demo-app
+demo-app/scripts
+demo-app/images
+demo-app/styles
+demo-app/views
 ```
 
-Build is similar to development build of an application.
+Build is similar to development build of an application: bower dependencies (including self) are injected into index.html by wiredep.
+Less styles from `demo-app/styles/main.less` are compiled to CSS, all CSS files are autoprefixed.
+All assets from `bower_componets/*/dist` are served as static resources: this gives the possibity to use assets from other libraries,
+`bower_componets` served as `/bower_componets`.
 
-#### Styles
+## Safe release procedure
 
-Own LESS stylesheet is compiled to CSS and autoprefixed:
+Following procedure is implemented by `grunt release` task:
 
-```
-less(demo-app/styles, main.less) -> demo-app.gen/styles/main.css
-autoprefix(demo-app.gen/styles, *.css)
-```
+1. Check there are no uncommitted changes.
+2. Bump version number
+2. Run `build` task
+5. Update manifest files (package.json, bower.json)
+6. Commit changes
+7. Tag commit
+9. Push changes & tag to the repo
 
-#### Library Components
-
-Prepared by distribution build in `dist/`. Included manually in the demo app, references have template `${libraryName}/${assetType}/${assetName}`, for example `client-widgets/views/clientDetails.html`, where `client-widgets` is the name of the library.
-
-#### Assets from dependencies
-
-Script and css files are injected by wiredep into `demo-app/index.html`.
-
-Other assets are copied to `demo-app.libs` and served as static resources by development web server: 
-
-```
-copy(bower_components/(.*)/dist, $1/**/![*.js, *.css]) -> demo-app.libs/
-```
-
-### Development web server
+Still, things can go wrong if bower.json doesn't have all the required dependencies and they are injected manually into demo app for testing.
  
-Serves static content from following directories:
+It makes sense to prepare full build first and test it before producing important release:
 
-* `demo-app.gen`
-* `demo-app`
-* `dist`
-* `demo-app.libs`
+```sh
+rm -rf node_modules && npm install
+rm -rf bower_components && bower install
+grunt serve
+```
 
-Changes are watched and propagated to these folders automatically
+and release after build is tested.
