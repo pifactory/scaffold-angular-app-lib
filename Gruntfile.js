@@ -80,6 +80,28 @@ module.exports = function (grunt) {
       }
     },
 
+    imagemin: {
+      dist: {
+        files: [{
+          expand: true,
+          cwd: 'app-lib/images',
+          src: '**/*.{png,jpg,jpeg,gif}',
+          dest: '<%= libDistPath %>/images'
+        }]
+      }
+    },
+
+    svgmin: {
+      dist: {
+        files: [{
+          expand: true,
+          cwd: 'app-lib/images',
+          src: '**/*.svg',
+          dest: '<%= libDistPath %>/images'
+        }]
+      }
+    },
+
     copy: {
       build: {
         files: [{
@@ -87,8 +109,7 @@ module.exports = function (grunt) {
           cwd: 'app-lib',
           src: [
             '**',
-            '!**/*.js',
-            '!**/*.css'
+            '!**/*.{js,css,png,jpg,jpeg,gif,svg}'
           ],
           dest: '<%= libDistPath %>',
           filter: 'isFile'
@@ -127,12 +148,8 @@ module.exports = function (grunt) {
     browserSync: {
       bsFiles: {
         src: [
-          'dist/**/*.html',
-          'dist/**/*.js',
-          'dist/**/*.css',
-          'demo-app/**/*.html',
-          'demo-app/**/*.js',
-          'demo-app/**/*.css'
+          'dist/**/*.{html,js,css}',
+          'demo-app/**/*.{html,js,css}'
         ]
       },
       options: {
@@ -198,24 +215,30 @@ module.exports = function (grunt) {
           livereload: true
         }
       },
-      libStyles: {
+      libLess: {
         files: ['app-lib/styles/**/*.less'],
         tasks: ['less:build', 'concat:buildCss', 'autoprefixer:build'],
         options: {
           livereload: true
         }
       },
+      libCss: {
+        files: ['app-lib/styles/**/*.css'],
+        tasks: ['concat:buildCss', 'autoprefixer:build'],
+        options: {
+          livereload: true
+        }
+      },
       libAssets: {
         files: [
-          'app-lib/**/*.html',
-          'app-lib/**/*.css'
+          'app-lib/**/*.html'
         ],
         tasks: ['newer:copy:build'],
         options: {
           livereload: true
         }
       },
-      demoStyles: {
+      demoLess: {
         files: ['demo-app/styles/**/*.less'],
         tasks: ['less:demo', 'autoprefixer:demo'],
         options: {
@@ -224,9 +247,7 @@ module.exports = function (grunt) {
       },
       livereload: {
         files: [
-          'demo-app/**/*.html',
-          'demo-app/**/*.js',
-          '.tmp/demo-app.gen/**/*.css'
+          'demo-app/**/*.{html,js,css}'
         ],
         options: {
           livereload: true
@@ -307,6 +328,8 @@ module.exports = function (grunt) {
       'less:build',
       'concat:buildCss',
       'autoprefixer:build',
+      'imagemin',
+      'svgmin',
       'copy:build'
     ]);
 
@@ -319,9 +342,7 @@ module.exports = function (grunt) {
       'less:demo',
       'autoprefixer:demo',
       'copy:demo',
-      'wiredep',
-      'connect:livereload',
-      'watch'
+      'wiredep'
     ];
 
     if (reloader === 'browserSync') {

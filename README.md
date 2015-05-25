@@ -25,9 +25,21 @@ app-lib/styles
 app-lib/views
 ```
 
-Build prepares distribution copy in `dist/${packageName}` folder. Scripts are style-checked with ESLint and concatenated into `dist/${packageName}/index.js`. 
+Build prepares distribution copy in `dist/${packageName}` folder.
+ 
+#### Script files
+Must be placed in `app-lib/scripts`. They are style-checked with ESLint and concatenated into `dist/${packageName}/index.js`.
+`app-lib/scripts/lib.js` is put first in the concatenated file. 
+ 
+#### HTML files
+It is not required, but better be placed to `app-lib/views`. No processing is applied, they are just copied to `dist/${packageName}`
+and are meant to be available on hosting apps via reference `${packageName}/views/**/*.html`.
+  
+#### Images
+Same as HTML files, sub-folder name is `images`. 
+
+#### Styles
 Less styles from `app-lib/styles/main.less` are compiled to CSS. All CSS files are concatenated and autoprefixed into `dist/${packageName}/main.css`.
-Other resources (like HTML etc) are copied as is.
 
 ### Demo app
 
