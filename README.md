@@ -28,8 +28,17 @@ app-lib/views
 Build prepares distribution copy in `dist/${packageName}` folder.
  
 #### Script files
-Must be placed in `app-lib/scripts`. They are style-checked with ESLint and concatenated into `dist/${packageName}/index.js`.
-`app-lib/scripts/lib.js` is put first in the concatenated file. 
+It is not required, but better be placed to `app-lib/scripts`. Must be referenced in the `demo-app/index.html` between usemin build annotation tags:
+
+```html
+<!-- build:js index.js -->
+<script src="scaffold-angular-app-lib/scripts/lib.js"></script>
+<script src="scaffold-angular-app-lib/scripts/directives/smcComponentX.js"></script>
+<script src="scaffold-angular-app-lib/scripts/services/someService.js"></script>
+<!-- endbuild -->
+```
+
+They are style-checked with ESLint and concatenated into `dist/${packageName}/index.js`.
  
 #### HTML files
 It is not required, but better be placed to `app-lib/views`. No processing is applied, they are just copied to `dist/${packageName}`
@@ -39,7 +48,8 @@ and are meant to be available on hosting apps via reference `${packageName}/view
 Same as HTML files, sub-folder name is `images`. 
 
 #### Styles
-Less styles from `app-lib/styles/main.less` are compiled to CSS. All CSS files are concatenated and autoprefixed into `dist/${packageName}/main.css`.
+Less styles from `app-lib/styles/main.less` are compiled to `dist/${packageName}/main.css`.
+__CSS files are not supported.__
 
 ### Demo app
 

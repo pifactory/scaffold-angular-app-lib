@@ -22,7 +22,7 @@ module.exports = function (grunt) {
       build: {
         src: [
           'Gruntfile.js',
-          'app-lib/scripts/**/*.js'
+          'app-lib/**/*.js'
         ]
       }
     },
@@ -33,7 +33,7 @@ module.exports = function (grunt) {
           paths: ['app-lib/styles']
         },
         files: {
-          '.tmp/app-lib.gen/styles/main.css': 'app-lib/styles/main.less'
+          '<%= libStyle %>': 'app-lib/styles/main.less'
         }
       },
       demo: {
@@ -46,25 +46,42 @@ module.exports = function (grunt) {
       }
     },
 
-    concat: {
-      buildCss: {
-        options: {
-          separator: '\n'
-        },
-        src: ['app-lib/styles/**/*.css', '.tmp/app-lib.gen/styles/**/*.css'],
-        dest: '<%= libStyle %>'
-      },
-      buildJs: {
-        options: {
-          separator: ';',
-          banner: "'use strict';\n",
-          process: function (src, filepath) {
-            return '// Source: ' + filepath + '\n' +
-              src.replace(/(^|\n)[ \t]*('use strict'|"use strict");?\s*/g, '$1');
+    useminPrepare: {
+      html: 'demo-app/index.html',
+      options: {
+        staging: '.tmp',
+        dest: '<%= libDistPath %>',
+        flow: {
+          html: {
+            steps: {
+              js: ['concat'],
+              css: ['concat']
+            },
+            post: (function () {
+
+              // will be put in bower.json later
+              var generatedJsFiles = [];
+              grunt.config.set('generated.js.files', generatedJsFiles);
+
+              return {
+                js: [{
+                  name: 'concat',
+                  createConfig: function setAppLibSource(context) {
+                    var appLibPrefix = new RegExp('^demo-app\\' + grunt.config.get('libWebRoot'));
+                    context.options.generated.files.forEach(function (files) {
+                      generatedJsFiles.push(files.dest);
+                      grunt.config.set('generated.js.files', generatedJsFiles);
+                      files.src = files.src.map(function (src) {
+                        return src.replace(appLibPrefix, 'app-lib');
+                      });
+                    });
+                  }
+                }]
+              };
+
+            })()
           }
-        },
-        src: ['app-lib/scripts/lib.js', 'app-lib/scripts/**/*.js'],
-        dest: '<%= libScript %>'
+        }
       }
     },
 
@@ -73,7 +90,7 @@ module.exports = function (grunt) {
         browsers: ['last 1 version']
       },
       build: {
-        src: '<%= libDistPath %>/main.css'
+        src: '<%= libStyle %>'
       },
       demo: {
         src: '.tmp/demo-app.gen/styles/main.css'
@@ -125,11 +142,12 @@ module.exports = function (grunt) {
             '*/dist/**/*',
             '!**/*.{js,css}'
           ],
-          filter: 'isFile',
+          filter: function (src) {
+            var srcpath = src.split(path.sep);
+            return srcpath[1] === srcpath[3];
+          },
           rename: function (dest, src) {
-            var sourceArray = src.split(path.sep);
-            sourceArray.splice(0, 2);
-            return path.join('.tmp/demo-app.libs', sourceArray.join(path.sep));
+            return path.join('.tmp/demo-app.libs', src.split(path.sep).slice(2).join(path.sep));
           }
         }],
         timestamp: true
@@ -139,16 +157,16 @@ module.exports = function (grunt) {
     wiredep: {
       demo: {
         src: 'demo-app/index.html',
-        ignorePath: /\.\.\/(dist\/)?/,
-        devDependencies: true,
-        includeSelf: true
+        ignorePath: /\.\.\//,
+        devDependencies: true
       }
     },
 
     browserSync: {
       bsFiles: {
         src: [
-          'dist/**/*.{html,js,css}',
+          'app-lib/**/*.{html,js}',
+          '<%= libStyle %>',
           'demo-app/**/*.{html,js,css}'
         ]
       },
@@ -159,11 +177,10 @@ module.exports = function (grunt) {
           baseDir: [
             '.tmp/demo-app.gen',
             'demo-app',
-            'dist',
             '.tmp/demo-app.libs'
           ],
           routes: {
-            '/bower_components': 'bower_components'
+            'configured': 'in loadBowerConfig()'
           }
         }
       }
@@ -182,8 +199,12 @@ module.exports = function (grunt) {
             return [
               connect.static('.tmp/demo-app.gen'),
               connect.static('demo-app'),
-              connect.static('dist'),
               connect.static('.tmp/demo-app.libs'),
+              connect().use(
+                grunt.config.get('libWebRoot'),
+                connect.static('./app-lib')
+              ),
+              connect.static('dist'),
               connect().use(
                 '/bower_components',
                 connect.static('./bower_components')
@@ -208,32 +229,9 @@ module.exports = function (grunt) {
         files: ['bower.json'],
         tasks: ['reloadBower', 'wiredep']
       },
-      libJs: {
-        files: ['app-lib/scripts/**/*.js'],
-        tasks: ['newer:eslint', 'concat:buildJs'],
-        options: {
-          livereload: true
-        }
-      },
       libLess: {
         files: ['app-lib/styles/**/*.less'],
-        tasks: ['less:build', 'concat:buildCss', 'autoprefixer:build'],
-        options: {
-          livereload: true
-        }
-      },
-      libCss: {
-        files: ['app-lib/styles/**/*.css'],
-        tasks: ['concat:buildCss', 'autoprefixer:build'],
-        options: {
-          livereload: true
-        }
-      },
-      libAssets: {
-        files: [
-          'app-lib/**/*.html'
-        ],
-        tasks: ['newer:copy:build'],
+        tasks: ['less:build', 'autoprefixer:build'],
         options: {
           livereload: true
         }
@@ -247,6 +245,7 @@ module.exports = function (grunt) {
       },
       livereload: {
         files: [
+          'app-lib/**/*.{html,js}',
           'demo-app/**/*.{html,js,css}'
         ],
         options: {
@@ -287,34 +286,39 @@ module.exports = function (grunt) {
       grunt.warn('Package names in package.json and bower.json do not match');
     }
 
-    var libDistPath = path.join('dist', grunt.file.readJSON('bower.json').name);
-    var libScript = libDistPath + '/index.js';
+    var libWebRoot = '/' + bower.name;
+    var libDistPath = path.join('dist', bower.name);
     var libStyle = libDistPath + '/main.css';
 
-    if (!bower.main || bower.main.length < 1 || bower.main.indexOf(libScript) < 0) {
-      grunt.warn('bower.json does not declare ' + libScript + ' as main file');
-    }
-
-    if (!bower.main) {
-      var hasMainFilesOutsideDist = false;
-      bower.main.forEach(function (mainFile) {
-        hasMainFilesOutsideDist = hasMainFilesOutsideDist || path.normalize(mainFile).indexOf('dist/') !== 0;
-      });
-
-      if (hasMainFilesOutsideDist) {
-        grunt.warn('bower.json declares main files outside the dist folder');
-      }
-    }
-
+    grunt.config.set('libWebRoot', libWebRoot);
     grunt.config.set('libDistPath', libDistPath);
-    grunt.config.set('libScript', libScript);
     grunt.config.set('libStyle', libStyle);
+
+    var routes = {};
+    routes[libWebRoot] = 'app-lib';
+    routes['/'] = 'dist';
+    routes['/bower_components'] = 'bower_components';
+    grunt.config.set('browserSync.options.server.routes', routes);
   }
 
   loadBowerConfig();
 
   grunt.registerTask('reloadBower', 'Internal task.', function () {
     loadBowerConfig();
+  });
+
+  grunt.registerTask('updateBower', 'Internal task.', function () {
+    var bower = grunt.file.readJSON('bower.json');
+    var generatedJsFiles = grunt.config.get('generated.js.files');
+    if (generatedJsFiles instanceof Array && generatedJsFiles.length > 0) {
+      bower.main = grunt.config.get('generated.js.files').slice();
+      bower.main.push(grunt.config.get('libStyle'));
+      grunt.file.write('bower.json', JSON.stringify(bower, null, 2));
+    } else {
+      grunt.warn('No javascript files will be exported. ' +
+        ' Did you forgot to place usemin <!-- build:js index.js --> <!-- endbuild -->' +
+        ' annotations around your app-lib script import tags in demo-app/index.html?');
+    }
   });
 
   grunt.registerTask('build', 'Prepare distribution files from sources in app-lib folder', function () {
@@ -324,9 +328,10 @@ module.exports = function (grunt) {
     grunt.task.run([
       'clean:build',
       'eslint:build',
-      'concat:buildJs',
       'less:build',
-      'concat:buildCss',
+      'useminPrepare',
+      'concat',
+      'updateBower',
       'autoprefixer:build',
       'imagemin',
       'svgmin',

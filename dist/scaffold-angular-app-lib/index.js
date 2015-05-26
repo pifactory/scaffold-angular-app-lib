@@ -1,8 +1,10 @@
 'use strict';
-// Source: app-lib/scripts/lib.js
+
 angular
   .module('scaffoldAppLib', []);
-;// Source: app-lib/scripts/directives/smcComponentX.js
+
+'use strict';
+
 angular.module('scaffoldAppLib')
   .directive('smcComponentX', function () {
     return {
@@ -17,7 +19,9 @@ angular.module('scaffoldAppLib')
     };
   });
 
-;// Source: app-lib/scripts/services/someService.js
+
+'use strict';
+
 angular.module('scaffoldAppLib')
   .service('SomeService', function () {
     return {

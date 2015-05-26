@@ -6,8 +6,10 @@
     <meta name="viewport" content="width=device-width">
     <!-- bower:css -->
     <link rel="stylesheet" href="bower_components/bootstrap/dist/css/bootstrap.css" />
-    <link rel="stylesheet" href="scaffold-angular-app-lib/main.css" />
     <!-- endbower -->
+
+    <link rel="stylesheet" href="scaffold-angular-app-lib/main.css"/>
+
     <link rel="stylesheet" href="styles/main.css">
 </head>
 <body>
@@ -29,8 +31,14 @@
 <script src="bower_components/angular-translate/angular-translate.js"></script>
 <script src="bower_components/angular-bootstrap/ui-bootstrap-tpls.js"></script>
 <script src="bower_components/angular-mocks/angular-mocks.js"></script>
-<script src="scaffold-angular-app-lib/index.js"></script>
 <!-- endbower -->
+
+<!-- build:js index.js -->
+<!-- Place your app-lib scripts here. They will be concatenated and exported as one file. -->
+<script src="scaffold-angular-app-lib/scripts/lib.js"></script>
+<script src="scaffold-angular-app-lib/scripts/directives/smcComponentX.js"></script>
+<script src="scaffold-angular-app-lib/scripts/services/someService.js"></script>
+<!-- endbuild -->
 
 <script src="scripts/app.js"></script>
 </body>
